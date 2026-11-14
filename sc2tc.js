@@ -7,7 +7,7 @@
 // @author       helloworld0927
 // @supportURL   https://github.com/helloworld0927/sc2tc-script
 // @homepageURL  https://github.com/helloworld0927/sc2tc-script
-// @version      2.0.0
+// @version      2.1.0
 // @description  任意轉換網頁中的簡體中文與繁體中文（默認簡體→繁體），使用 OpenCC 詞庫
 // @description:zh-TW  任意轉換網頁中的簡體中文與繁體中文（默認簡體→繁體），使用 OpenCC 詞庫
 // @description:zh-CN  任意转换网页中的简体中文与繁体中文（默认繁体→简体），使用 OpenCC 词库
@@ -19,6 +19,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
 // @grant        GM_notification
 // @run-at       document-idle
 // @license      MIT
@@ -236,14 +237,29 @@
     applyAction();
   }
 
-  function cycleRegion() {
-    const keys = Object.keys(REGIONS);
-    region = keys[(keys.indexOf(region) + 1) % keys.length];
+  function setRegion(next) {
+    if (next === region) return;
+    region = next;
     GM_setValue("region", region);
     notify("繁體地區：" + REGIONS[region]);
     // 已轉過的文字無法無損轉回，重新載入最乾淨
-    if (action === ACTION.TRADITIONAL) location.reload();
-    else buildConverters();
+    if (action === ACTION.TRADITIONAL) {
+      location.reload();
+      return;
+    }
+    buildConverters();
+    registerRegionMenu();
+  }
+
+  // 三個地區各一個選單項目，目前使用中的打勾
+  let regionMenuIds = [];
+  function registerRegionMenu() {
+    if (typeof GM_unregisterMenuCommand === "function") {
+      regionMenuIds.forEach((id) => GM_unregisterMenuCommand(id));
+    }
+    regionMenuIds = Object.entries(REGIONS).map(([key, label]) =>
+      GM_registerMenuCommand((key === region ? "✓ " : "　 ") + "繁體：" + label, () => setRegion(key))
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -294,7 +310,7 @@
   });
 
   GM_registerMenuCommand("繁簡切換【Ctrl+F8】", cycleAction);
-  GM_registerMenuCommand("切換繁體地區（台灣／香港）", cycleRegion);
+  registerRegionMenu();
 
   // ---------------------------------------------------------------------------
   // 啟動
